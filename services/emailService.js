@@ -114,10 +114,9 @@ async function sendJobReportEmail(userEmail, userName, role, jobs) {
   const htmlContent = buildEmailTemplate(role, jobs, userName);
 
   if (!transporter) {
-    console.log(`[EmailService - DRY RUN] Email would be sent to: ${userEmail}`);
-    console.log(`[EmailService - DRY RUN] Subject: "${subject}"`);
-    console.log(`[EmailService - DRY RUN] Total Jobs included: ${jobs.length}`);
-    return { success: true, dryRun: true, message: 'SMTP credentials not configured in .env yet. Mock email generated.' };
+    const errorMsg = 'SMTP_USER or SMTP_PASS secret is not set or empty in GitHub Secrets!';
+    console.error(`[EmailService ERROR] ${errorMsg}`);
+    throw new Error(errorMsg);
   }
 
   const mailOptions = {
@@ -127,8 +126,9 @@ async function sendJobReportEmail(userEmail, userName, role, jobs) {
     html: htmlContent
   };
 
+  console.log(`[EmailService] Attempting to send email via Gmail SMTP to: ${userEmail}...`);
   const info = await transporter.sendMail(mailOptions);
-  console.log(`[EmailService] Email sent successfully to ${userEmail}! Message ID: ${info.messageId}`);
+  console.log(`[EmailService] ✅ Email DELIVERED to ${userEmail}! Message ID: ${info.messageId}`);
   return { success: true, messageId: info.messageId };
 }
 
