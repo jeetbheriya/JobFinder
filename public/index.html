@@ -55,18 +55,19 @@
             </div>
 
             <div>
-              <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Target Location / Preference</label>
+              <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Target Location</label>
               <select id="location" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
-                <option value="Remote">Remote (Worldwide / Global)</option>
-                <option value="India">India</option>
-                <option value="USA">United States</option>
-                <option value="Hybrid">Hybrid / Anywhere</option>
+                <option value="India" selected>🇮🇳 India (All Cities / Remote)</option>
+                <option value="Bangalore">Bengaluru / Bangalore</option>
+                <option value="Hyderabad">Hyderabad</option>
+                <option value="Pune">Pune</option>
+                <option value="Delhi NCR">Delhi NCR / Noida / Gurgaon</option>
               </select>
             </div>
 
             <div>
-              <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Custom Prompt / Focus (Optional)</label>
-              <textarea id="prompt" rows="2" placeholder="e.g. Only senior roles, prefer high package, React or Node.js focus" class="w-full px-3 py-2 border rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
+              <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Custom Preferences (Optional)</label>
+              <textarea id="prompt" rows="2" placeholder="e.g. 2024/2025 batch, MERN stack, startup or MNC, trainee/intern" class="w-full px-3 py-2 border rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
             </div>
 
             <button type="submit" id="saveBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg text-sm shadow transition duration-150 flex items-center justify-center space-x-2">

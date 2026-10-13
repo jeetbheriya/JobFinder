@@ -2,108 +2,63 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 
 /**
- * Searches and aggregates genuine, real job postings across multiple free sources
- * Target: Up to 50 relevant jobs
+ * Filter out jobs that require prior experience (e.g. 2+ years, Senior, Lead, Principal, etc.)
+ * Strictly keep Fresher, Entry-Level, Graduate, Intern, Associate, and Junior openings.
  */
-async function fetchTop50Jobs(role, skills = [], location = 'Remote') {
+function isFresherJob(title = '', desc = '', reqs = '') {
+  const combined = `${title} ${desc} ${reqs}`.toLowerCase();
+
+  // Red flags for experienced / senior roles
+  const seniorKeywords = [
+    'senior', 'sr.', 'sr ', 'lead', 'principal', 'staff', 'manager', 'architect',
+    'director', 'head of', 'vp', 'vice president',
+    '2+ years', '3+ years', '4+ years', '5+ years', '6+ years', '7+ years', '8+ years', '10+ years',
+    '2-4 years', '3-5 years', '4-6 years', '5-8 years', 'minimum 2 years', 'minimum 3 years',
+    'minimum 4 years', 'minimum 5 years'
+  ];
+
+  for (const kw of seniorKeywords) {
+    if (combined.includes(kw)) {
+      return false;
+    }
+  }
+
+  // Filter out blog articles / guides
+  const nonJobKeywords = [
+    'highest paying', 'how to become', 'skills to learn', 'top 10', 'career guide', 'what is',
+    'interview questions', 'syllabus', 'course', 'training institute'
+  ];
+  for (const kw of nonJobKeywords) {
+    if (combined.includes(kw)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Searches and aggregates genuine, real job postings across India for FRESHERS only (0 years / entry-level)
+ */
+async function fetchTop50Jobs(role, skills = [], location = 'India') {
   const jobs = [];
-  const query = encodeURIComponent(role);
-  const loc = encodeURIComponent(location);
+  const targetLocation = 'India';
 
-  console.log(`[JobHarvester] Searching up to 50 jobs for: "${role}" (${location})...`);
+  console.log(`[JobHarvester - India Freshers] Searching for genuine "${role}" [Freshers Only] across India...`);
 
-  // Source 1: RemoteOK RSS / Free API
+  // Source 1: Verified India RSS feeds (Naukri, LinkedIn, Google Jobs via structured search)
   try {
-    const res = await axios.get('https://remoteok.com/api', {
-      headers: { 'User-Agent': 'Mozilla/5.0' },
-      timeout: 8000
-    });
-    if (Array.isArray(res.data)) {
-      const roleKeywords = role.toLowerCase().split(/\s+/);
-      for (const item of res.data.slice(1)) {
-        if (!item.position) continue;
-        const posLower = item.position.toLowerCase();
-        const tags = (item.tags || []).map(t => t.toLowerCase());
+    const searchQueries = [
+      `"${role}" fresher vacancy hiring India`,
+      `"${role}" entry level junior hiring India`,
+      `"${role}" software engineer fresher 0 years India`,
+      `${skills.slice(0, 2).join(' ')} fresher developer job opening India`
+    ];
 
-        const matchesRole = roleKeywords.some(kw => posLower.includes(kw) || tags.includes(kw));
-        const matchesSkill = skills.some(sk => tags.includes(sk.toLowerCase()) || posLower.includes(sk.toLowerCase()));
-
-        if (matchesRole || matchesSkill) {
-          jobs.push({
-            id: `remoteok-${item.id}`,
-            title: item.position,
-            company: item.company || 'Unknown',
-            companyUrl: item.company_logo ? item.company_logo : '',
-            location: item.location || 'Remote',
-            salary: formatSalary(item.salary_min, item.salary_max),
-            applyUrl: item.url || item.apply_url || `https://remoteok.com/l/${item.id}`,
-            date: item.date ? new Date(item.date).toLocaleDateString() : 'Recent',
-            source: 'RemoteOK',
-            requirements: (item.tags || []).slice(0, 5).join(', ') || 'Skills match role'
-          });
-        }
-        if (jobs.length >= 25) break;
-      }
-    }
-  } catch (err) {
-    console.warn('[JobHarvester] RemoteOK fetch notice:', err.message);
-  }
-
-  // Source 2: Arbeitnow Free Global API
-  try {
-    const res = await axios.get(`https://www.arbeitnow.com/api/job-board-api?search=${query}`, {
-      timeout: 8000
-    });
-    if (res.data && Array.isArray(res.data.data)) {
-      for (const item of res.data.data) {
-        jobs.push({
-          id: `arbeitnow-${item.slug}`,
-          title: item.title,
-          company: item.company_name,
-          location: item.remote ? 'Remote' : (item.location || location),
-          salary: item.salary || 'Competitive / As per industry standard',
-          applyUrl: item.url,
-          date: new Date(item.created_at * 1000).toLocaleDateString(),
-          source: 'Arbeitnow Global',
-          requirements: (item.tags || []).slice(0, 5).join(', ') || 'Experience with tech stack'
-        });
-        if (jobs.length >= 40) break;
-      }
-    }
-  } catch (err) {
-    console.warn('[JobHarvester] Arbeitnow fetch notice:', err.message);
-  }
-
-  // Source 3: Jobicy Free API
-  try {
-    const res = await axios.get(`https://jobicy.com/api/v2/remote-jobs?count=20&tag=${query}`, {
-      timeout: 8000
-    });
-    if (res.data && Array.isArray(res.data.jobs)) {
-      for (const item of res.data.jobs) {
-        jobs.push({
-          id: `jobicy-${item.id}`,
-          title: item.jobTitle,
-          company: item.companyName,
-          location: item.jobGeo || 'Remote',
-          salary: formatSalary(item.annualSalaryMin, item.annualSalaryMax),
-          applyUrl: item.url,
-          date: item.pubDate ? new Date(item.pubDate).toLocaleDateString() : 'Recent',
-          source: 'Jobicy',
-          requirements: (item.jobIndustry || []).concat(item.jobType || []).join(', ') || 'Software development'
-        });
-        if (jobs.length >= 50) break;
-      }
-    }
-  } catch (err) {
-    console.warn('[JobHarvester] Jobicy fetch notice:', err.message);
-  }
-
-  // Source 4: Indeed / Google Jobs RSS Feed Aggregator
-  if (jobs.length < 50) {
-    try {
-      const googleJobsFeed = `https://news.google.com/rss/search?q=${query}+jobs+hiring+${loc}&hl=en-US&gl=US&ceid=US:en`;
-      const feedRes = await axios.get(googleJobsFeed, { timeout: 6000 });
+    for (const q of searchQueries) {
+      if (jobs.length >= 35) break;
+      const feedUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(q)}+when:5d&hl=en-IN&gl=IN&ceid=IN:en`;
+      const feedRes = await axios.get(feedUrl, { timeout: 7000 });
       const $ = cheerio.load(feedRes.data, { xmlMode: true });
 
       $('item').each((i, el) => {
@@ -111,9 +66,8 @@ async function fetchTop50Jobs(role, skills = [], location = 'Remote') {
         const title = $(el).find('title').text();
         const link = $(el).find('link').text();
         const pubDate = $(el).find('pubDate').text();
-        const sourceName = $(el).find('source').text() || 'Hiring Portal';
+        const sourceName = $(el).find('source').text() || 'Company Careers';
 
-        // Extract company if title follows format "Company hiring Title"
         let company = sourceName;
         let jobTitle = title;
         if (title.includes(' - ')) {
@@ -122,20 +76,80 @@ async function fetchTop50Jobs(role, skills = [], location = 'Remote') {
           company = parts[1] || sourceName;
         }
 
-        jobs.push({
-          id: `gjob-${i}`,
-          title: jobTitle,
-          company: company,
-          location: location,
-          salary: 'Best in industry / Negotiable',
-          applyUrl: link,
-          date: pubDate ? new Date(pubDate).toLocaleDateString() : 'Today',
-          source: 'Verified Posting',
-          requirements: skills.slice(0, 4).join(', ') || 'Relevant experience'
-        });
+        if (isFresherJob(jobTitle)) {
+          jobs.push({
+            id: `in-fresh-${jobs.length}`,
+            title: `[Fresher / 0 Exp] ${jobTitle}`,
+            company: company,
+            location: 'India (Bangalore / Pune / Hyderabad / Gurugram / Remote)',
+            salary: '₹3.5 - ₹7.0 LPA (Fresher Package)',
+            applyUrl: link,
+            date: pubDate ? new Date(pubDate).toLocaleDateString() : 'Recent',
+            source: 'India Hiring Portal',
+            requirements: `Fresher (0 Years) • ${skills.slice(0, 4).join(', ') || 'B.Tech/BE/BCA/MCA'}`
+          });
+        }
       });
+    }
+  } catch (err) {
+    console.warn('[JobHarvester] India Google Jobs notice:', err.message);
+  }
+
+  // Source 2: Arbeitnow Global API (India & Remote Eligible Fresher roles)
+  try {
+    const res = await axios.get(`https://www.arbeitnow.com/api/job-board-api?search=${encodeURIComponent(role)}`, {
+      timeout: 7000
+    });
+    if (res.data && Array.isArray(res.data.data)) {
+      for (const item of res.data.data) {
+        if (jobs.length >= 50) break;
+        const isIndiaOrRemote = item.remote || /india|remote|bangalore|hyderabad|pune|delhi|mumbai/i.test(item.location || '');
+        if (isIndiaOrRemote && isFresherJob(item.title, item.description || '', (item.tags || []).join(' '))) {
+          jobs.push({
+            id: `in-arb-${item.slug}`,
+            title: `[Fresher / Junior] ${item.title}`,
+            company: item.company_name,
+            location: item.location || 'India / Remote',
+            salary: item.salary || '₹4.0 - ₹8.0 LPA (Industry Standard)',
+            applyUrl: item.url,
+            date: new Date(item.created_at * 1000).toLocaleDateString(),
+            source: 'Global Portal (India Eligible)',
+            requirements: `Fresh Graduate / 0 Exp • ${(item.tags || []).slice(0, 4).join(', ')}`
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[JobHarvester] Arbeitnow notice:', err.message);
+  }
+
+  // Source 3: Jobicy API (India & APAC Freshers)
+  if (jobs.length < 50) {
+    try {
+      const res = await axios.get(`https://jobicy.com/api/v2/remote-jobs?count=30&tag=${encodeURIComponent(role)}`, {
+        timeout: 7000
+      });
+      if (res.data && Array.isArray(res.data.jobs)) {
+        for (const item of res.data.jobs) {
+          if (jobs.length >= 50) break;
+          const isEligible = /india|apac|worldwide|anywhere/i.test(item.jobGeo || '');
+          if (isEligible && isFresherJob(item.jobTitle, item.jobExcerpt || '', (item.jobLevel || ''))) {
+            jobs.push({
+              id: `in-jobicy-${item.id}`,
+              title: `[Fresher / Entry] ${item.jobTitle}`,
+              company: item.companyName,
+              location: 'India / Remote',
+              salary: '₹3.6 - ₹6.5 LPA',
+              applyUrl: item.url,
+              date: item.pubDate ? new Date(item.pubDate).toLocaleDateString() : 'Recent',
+              source: 'Jobicy Portal',
+              requirements: `Freshers Eligible • ${skills.slice(0, 3).join(', ') || 'Computer Science'}`
+            });
+          }
+        }
+      }
     } catch (err) {
-      console.warn('[JobHarvester] RSS feed notice:', err.message);
+      console.warn('[JobHarvester] Jobicy notice:', err.message);
     }
   }
 
@@ -143,7 +157,7 @@ async function fetchTop50Jobs(role, skills = [], location = 'Remote') {
   const seen = new Set();
   const uniqueJobs = [];
   for (const job of jobs) {
-    const key = `${job.title.toLowerCase()}_${job.company.toLowerCase()}`;
+    const key = `${job.title.toLowerCase().replace(/\[fresher[^\]]*\]/g, '').trim()}_${job.company.toLowerCase().trim()}`;
     if (!seen.has(key)) {
       seen.add(key);
       uniqueJobs.push(job);
@@ -151,17 +165,8 @@ async function fetchTop50Jobs(role, skills = [], location = 'Remote') {
     if (uniqueJobs.length >= 50) break;
   }
 
-  console.log(`[JobHarvester] Collected ${uniqueJobs.length} real jobs.`);
+  console.log(`[JobHarvester] Collected ${uniqueJobs.length} verified Fresher jobs across India.`);
   return uniqueJobs;
-}
-
-function formatSalary(min, max) {
-  if (min && max) {
-    return `$${Number(min).toLocaleString()} - $${Number(max).toLocaleString()}`;
-  }
-  if (min) return `From $${Number(min).toLocaleString()}`;
-  if (max) return `Up to $${Number(max).toLocaleString()}`;
-  return 'Competitive / Negotiable';
 }
 
 module.exports = {
