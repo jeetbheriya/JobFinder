@@ -1,0 +1,72 @@
+name: Daily 10 AM India Fresher Job Hunter
+
+on:
+  schedule:
+    # 04:30 AM UTC = 10:00 AM IST (Indian Standard Time) Every Day
+    - cron: '30 4 * * *'
+  # Allows you to click "Run workflow" in GitHub UI to trigger anytime
+  workflow_dispatch:
+
+jobs:
+  hunt-and-mail:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci || npm install
+
+      - name: 🎯 Run Job Search & Send Top 50 Email @ 10 AM IST
+        env:
+          SMTP_HOST: smtp.gmail.com
+          SMTP_PORT: 465
+          SMTP_SECURE: true
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          DEFAULT_LOCATION: India
+        run: |
+          node -e "
+            const { fetchTop50Jobs } = require('./services/jobService');
+            const { findCompanyHREmails } = require('./services/hrFinder');
+            const { sendJobReportEmail } = require('./services/emailService');
+            const fs = require('fs');
+
+            async function run() {
+              console.log('⏰ Triggered daily 10:00 AM India Fresher job workflow!');
+              let profile = null;
+              if (fs.existsSync('./data/profile.json')) {
+                try { profile = JSON.parse(fs.readFileSync('./data/profile.json', 'utf-8')); } catch (_) {}
+              }
+
+              const role = (profile && (profile.targetRole || profile.parsedRole)) || 'Software Engineer';
+              const skills = (profile && profile.parsedSkills) || ['JavaScript', 'Node.js', 'React', 'Python'];
+              const recipient = (profile && profile.email) || process.env.SMTP_USER;
+              const name = (profile && profile.name) || 'Job Seeker';
+
+              console.log('Target Role:', role);
+              console.log('Target Location: India (Freshers Only)');
+              console.log('Recipient:', recipient);
+
+              const jobs = await fetchTop50Jobs(role, skills, 'India');
+              for (const job of jobs) {
+                job.hrEmails = findCompanyHREmails(job.company);
+              }
+
+              console.log('Collected:', jobs.length, 'India fresher jobs.');
+              const result = await sendJobReportEmail(recipient, name, role, jobs);
+              console.log('Delivery Result:', result);
+            }
+
+            run().catch(err => {
+              console.error(err);
+              process.exit(1);
+            });
+          "
