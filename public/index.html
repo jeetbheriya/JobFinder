@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Job Hunter & Auto-Mailer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800">
+  <!-- Top Navigation -->
+  <nav class="bg-indigo-700 text-white shadow-md">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <i class="fa-solid fa-briefcase text-2xl text-yellow-300"></i>
+        <h1 class="text-xl font-bold tracking-tight">AutoJob Hunter <span class="text-xs bg-indigo-500 text-indigo-100 px-2 py-0.5 rounded-full font-normal">Daily @ 10:00 AM</span></h1>
+      </div>
+      <div class="text-sm bg-indigo-800 px-3 py-1.5 rounded-lg flex items-center space-x-2">
+        <span class="inline-block w-2.5 h-2.5 bg-emerald-400 rounded-full animate-ping"></span>
+        <span class="text-slate-200">Daemon Active (Scheduled 10 AM)</span>
+      </div>
+    </div>
+  </nav>
+
+  <div class="max-w-6xl mx-auto px-4 py-8">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      
+      <!-- Left Column: User Account & Resume Upload -->
+      <div class="lg:col-span-1 space-y-6">
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+          <h2 class="text-lg font-bold text-slate-900 mb-4 flex items-center space-x-2">
+            <i class="fa-solid fa-user-gear text-indigo-600"></i>
+            <span>Your Profile & Setup</span>
+          </h2>
+
+          <form id="profileForm" class="space-y-4">
+            <div>
+              <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Your Full Name</label>
+              <input type="text" id="name" required placeholder="e.g. John Doe" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Your Email (Where jobs are sent)</label>
+              <input type="email" id="email" required placeholder="name@example.com" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Upload Resume (PDF)</label>
+              <div class="border-2 border-dashed border-slate-300 rounded-lg p-4 text-center hover:bg-slate-50 cursor-pointer relative" id="dropArea">
+                <input type="file" id="resume" accept=".pdf" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
+                <i class="fa-solid fa-file-pdf text-3xl text-red-500 mb-2"></i>
+                <p class="text-xs text-slate-600 font-medium" id="fileName">Click or drag & drop PDF resume</p>
+                <p class="text-[10px] text-slate-400">PDF files up to 10MB</p>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Target Location / Preference</label>
+              <select id="location" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
+                <option value="Remote">Remote (Worldwide / Global)</option>
+                <option value="India">India</option>
+                <option value="USA">United States</option>
+                <option value="Hybrid">Hybrid / Anywhere</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Custom Prompt / Focus (Optional)</label>
+              <textarea id="prompt" rows="2" placeholder="e.g. Only senior roles, prefer high package, React or Node.js focus" class="w-full px-3 py-2 border rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
+            </div>
+
+            <button type="submit" id="saveBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg text-sm shadow transition duration-150 flex items-center justify-center space-x-2">
+              <i class="fa-solid fa-paper-plane"></i>
+              <span>Save & Activate 10 AM Daily Run</span>
+            </button>
+          </form>
+        </div>
+
+        <!-- Quick Test Card -->
+        <div class="bg-indigo-50 rounded-xl border border-indigo-200 p-5">
+          <h3 class="text-sm font-bold text-indigo-950 mb-2 flex items-center space-x-2">
+            <i class="fa-solid fa-bolt text-amber-500"></i>
+            <span>Test Immediately</span>
+          </h3>
+          <p class="text-xs text-indigo-800 mb-4">
+            Don't want to wait until tomorrow at 10:00 AM? Run a live test right now to fetch the Top 50 jobs and preview/send the email!
+          </p>
+          <button id="runNowBtn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 rounded-lg text-xs shadow flex items-center justify-center space-x-2">
+            <i class="fa-solid fa-play"></i>
+            <span>Run Instant Test Now</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Right Column: Live Status & Preview of Jobs & Email -->
+      <div class="lg:col-span-2 space-y-6">
+        
+        <!-- Status Banner -->
+        <div id="statusAlert" class="hidden rounded-lg p-4 text-sm font-medium"></div>
+
+        <!-- Extracted Resume Insights -->
+        <div id="insightsCard" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+          <h3 class="text-sm font-bold text-slate-900 mb-2 flex items-center space-x-2">
+            <i class="fa-solid fa-microchip text-indigo-600"></i>
+            <span>Extracted Resume Profile</span>
+          </h3>
+          <div class="grid grid-cols-2 gap-4 text-xs">
+            <div>
+              <span class="text-slate-400 block">Identified Role:</span>
+              <span id="insRole" class="font-bold text-indigo-700 text-sm"></span>
+            </div>
+            <div>
+              <span class="text-slate-400 block">Detected Skills:</span>
+              <div id="insSkills" class="flex flex-wrap gap-1 mt-1"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Top 50 Jobs Preview -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+            <div>
+              <h3 class="font-bold text-slate-900">Live Top 50 Jobs & HR Contact Feed</h3>
+              <p class="text-xs text-slate-500" id="jobsSubheading">Configure profile or click "Run Instant Test" to load preview</p>
+            </div>
+            <span id="jobCountBadge" class="bg-slate-100 text-slate-700 text-xs px-2.5 py-1 rounded-full font-semibold">0 Jobs</span>
+          </div>
+
+          <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-500 uppercase sticky top-0 border-b">
+                <tr>
+                  <th class="px-4 py-3 w-10">#</th>
+                  <th class="px-4 py-3">Role & Requirements</th>
+                  <th class="px-4 py-3">Company</th>
+                  <th class="px-4 py-3">Package / Salary</th>
+                  <th class="px-4 py-3">Apply</th>
+                  <th class="px-4 py-3">HR / Recruiter Email</th>
+                </tr>
+              </thead>
+              <tbody id="jobsTableBody" class="divide-y divide-slate-100">
+                <tr>
+                  <td colspan="6" class="px-4 py-12 text-center text-slate-400">
+                    <i class="fa-solid fa-inbox text-3xl mb-2 block"></i>
+                    No jobs loaded yet. Upload your resume and click Save or Instant Test!
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const resumeInput = document.getElementById('resume');
+    const fileNameSpan = document.getElementById('fileName');
+    const profileForm = document.getElementById('profileForm');
+    const runNowBtn = document.getElementById('runNowBtn');
+    const statusAlert = document.getElementById('statusAlert');
+    const jobsTableBody = document.getElementById('jobsTableBody');
+    const jobCountBadge = document.getElementById('jobCountBadge');
+    const jobsSubheading = document.getElementById('jobsSubheading');
+    const insightsCard = document.getElementById('insightsCard');
+    const insRole = document.getElementById('insRole');
+    const insSkills = document.getElementById('insSkills');
+
+    // Show uploaded file name
+    resumeInput.addEventListener('change', () => {
+      if (resumeInput.files.length > 0) {
+        fileNameSpan.innerText = resumeInput.files[0].name;
+        fileNameSpan.classList.add('text-indigo-600', 'font-bold');
+      }
+    });
+
+    function showAlert(msg, isError = false) {
+      statusAlert.className = `rounded-lg p-4 text-sm font-medium ${isError ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-emerald-50 text-emerald-800 border border-emerald-200'}`;
+      statusAlert.innerText = msg;
+      statusAlert.classList.remove('hidden');
+    }
+
+    // Load existing profile if any
+    async function loadSavedProfile() {
+      try {
+        const res = await fetch('/api/profile');
+        const data = await res.json();
+        if (data && data.email) {
+          document.getElementById('name').value = data.name || '';
+          document.getElementById('email').value = data.email || '';
+          document.getElementById('location').value = data.location || 'Remote';
+          document.getElementById('prompt').value = data.prompt || '';
+          if (data.resumeOriginalName) {
+            fileNameSpan.innerText = `Current: ${data.resumeOriginalName}`;
+          }
+          if (data.parsedRole) {
+            insightsCard.classList.remove('hidden');
+            insRole.innerText = data.parsedRole;
+            insSkills.innerHTML = (data.parsedSkills || []).map(s => `<span class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-[11px] font-medium">${s}</span>`).join('');
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    loadSavedProfile();
+
+    // Form submit
+    profileForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const saveBtn = document.getElementById('saveBtn');
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Parsing Resume & Saving...</span>`;
+
+      const formData = new FormData();
+      formData.append('name', document.getElementById('name').value);
+      formData.append('email', document.getElementById('email').value);
+      formData.append('location', document.getElementById('location').value);
+      formData.append('prompt', document.getElementById('prompt').value);
+      if (resumeInput.files[0]) {
+        formData.append('resume', resumeInput.files[0]);
+      }
+
+      try {
+        const res = await fetch('/api/profile', {
+          method: 'POST',
+          body: formData
+        });
+        const result = await res.json();
+        if (result.success) {
+          showAlert(`✅ Profile saved! Daily job hunter scheduled for 10:00 AM every morning.`);
+          if (result.profile && result.profile.parsedRole) {
+            insightsCard.classList.remove('hidden');
+            insRole.innerText = result.profile.parsedRole;
+            insSkills.innerHTML = (result.profile.parsedSkills || []).map(s => `<span class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-[11px] font-medium">${s}</span>`).join('');
+          }
+        } else {
+          showAlert(result.error || 'Failed to save profile', true);
+        }
+      } catch (err) {
+        showAlert(err.message, true);
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> <span>Save & Activate 10 AM Daily Run</span>`;
+      }
+    });
+
+    // Run Instant Test
+    runNowBtn.addEventListener('click', async () => {
+      runNowBtn.disabled = true;
+      runNowBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Harvesting Top 50 Jobs...</span>`;
+      showAlert('⏳ Gathering Top 50 recent jobs & finding HR emails... Please allow ~10-15 seconds.');
+
+      try {
+        const res = await fetch('/api/run-now', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          showAlert(`🎉 Successfully scraped ${data.jobs.length} jobs and dispatched report!`);
+          jobCountBadge.innerText = `${data.jobs.length} Jobs`;
+          jobsSubheading.innerText = `Subject: Top 50 relevant job ${data.role}`;
+
+          // Render jobs table
+          jobsTableBody.innerHTML = data.jobs.map((job, idx) => `
+            <tr class="hover:bg-slate-50 transition">
+              <td class="px-4 py-3 font-semibold text-slate-500">${idx + 1}</td>
+              <td class="px-4 py-3">
+                <div class="font-bold text-slate-800">${job.title}</div>
+                <div class="text-[11px] text-slate-400">${job.requirements}</div>
+              </td>
+              <td class="px-4 py-3 font-semibold text-indigo-950">${job.company}</td>
+              <td class="px-4 py-3 text-emerald-600 font-bold">${job.salary}</td>
+              <td class="px-4 py-3">
+                <a href="${job.applyUrl}" target="_blank" class="bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1 rounded text-[11px] font-semibold inline-block">
+                  Apply ↗
+                </a>
+              </td>
+              <td class="px-4 py-3 font-mono text-[11px] text-slate-600">
+                ${(job.hrEmails || []).map(m => `<a href="mailto:${m}" class="text-blue-600 hover:underline block">${m}</a>`).join('')}
+              </td>
+            </tr>
+          `).join('');
+        } else {
+          showAlert(data.error || 'Failed to complete job cycle', true);
+        }
+      } catch (err) {
+        showAlert(err.message, true);
+      } finally {
+        runNowBtn.disabled = false;
+        runNowBtn.innerHTML = `<i class="fa-solid fa-play"></i> <span>Run Instant Test Now</span>`;
+      }
+    });
+  </script>
+</body>
+</html>
