@@ -4,7 +4,6 @@ on:
   schedule:
     # 04:30 AM UTC = 10:00 AM IST (Indian Standard Time) Every Day
     - cron: '30 4 * * *'
-  # Allows you to click "Run workflow" in GitHub UI to trigger anytime on-demand
   workflow_dispatch:
 
 jobs:
@@ -18,13 +17,12 @@ jobs:
       - name: ⚙️ Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
-          cache: 'npm'
+          node-version: 22
 
       - name: 📦 Install dependencies
-        run: npm ci || npm install
+        run: npm install
 
-      - name: 🎯 Harvest & Send Jobs for Full Stack, Frontend & Backend @ 10:00 AM IST
+      - name: 🎯 Run Multi-Track Job Hunter & Send Emails
         env:
           SMTP_HOST: smtp.gmail.com
           SMTP_PORT: 465
@@ -32,27 +30,4 @@ jobs:
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
           DEFAULT_LOCATION: India
-        run: |
-          node -e "
-            const { runMultiTrackJobHunter } = require('./services/multiTrackHunter');
-            const fs = require('fs');
-
-            async function run() {
-              console.log('⏰ Triggered 10:00 AM Multi-Role Job Hunter on GitHub Cloud!');
-              let profile = null;
-              if (fs.existsSync('./data/profile.json')) {
-                try { profile = JSON.parse(fs.readFileSync('./data/profile.json', 'utf-8')); } catch (_) {}
-              }
-
-              const recipient = (profile && profile.email) || process.env.SMTP_USER;
-              const name = (profile && profile.name) || 'Job Seeker';
-
-              const results = await runMultiTrackJobHunter(recipient, name);
-              console.log('Dispatch Summary:', JSON.stringify(results, null, 2));
-            }
-
-            run().catch(err => {
-              console.error('Fatal execution error:', err);
-              process.exit(1);
-            });
-          "
+        run: node run_daily.js
